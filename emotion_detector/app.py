@@ -8,7 +8,13 @@ emotion_detector = None
 # Model selection - can be 'deepface', 'custom', or 'hybrid'
 MODEL_MODE = os.getenv('MODEL_MODE', 'deepface').lower()
 
+# Initialize Flask app with error handling
 app = Flask(__name__)
+
+# Production configuration
+if os.environ.get('FLASK_ENV') == 'production':
+    app.config['DEBUG'] = False
+    app.config['TESTING'] = False
 
 # Ensure static directory exists
 static_dir = os.path.join(os.path.dirname(__file__), 'static')

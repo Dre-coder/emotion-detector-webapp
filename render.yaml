@@ -2,9 +2,9 @@ services:
   - type: web
     name: emotion-detector-webapp
     env: python
-    buildCommand: "./build.sh"
-    startCommand: "./start.sh"
     plan: free
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: chmod +x start.sh && ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.6
@@ -12,3 +12,5 @@ services:
         value: deepface
       - key: FLASK_ENV
         value: production
+      - key: DEEPFACE_MODELS_PATH
+        value: /opt/render/project/src/.deepface
