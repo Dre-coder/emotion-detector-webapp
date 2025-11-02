@@ -1,1 +1,1 @@
-web: gunicorn --bind 0.0.0.0:$PORT wsgi:application --timeout 120 --workers 1
+web: gunicorn --chdir emotion_detector --bind 0.0.0.0:$PORT app:app
