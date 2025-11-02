@@ -1,0 +1,4 @@
+#!/bin/bash
+# Start the Flask application with Gunicorn
+cd emotion_detector
+gunicorn --bind 0.0.0.0:$PORT app:app --timeout 120 --workers 1 --threads 2
