@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emotion Detector (DeepFace)</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>Emotion Detector (Pretrained DeepFace)</h1>
+
+    <section class="card">
+      <h2>Upload an Image</h2>
+      <form action="/predict" method="post" enctype="multipart/form-data" id="upload-form">
+        <label for="name-input">Your name (optional):</label>
+        <input type="text" id="name-input" name="name" placeholder="Your name (optional)" /><br /><br />
+        <label for="file-input">Select image:</label>
+        <input type="file" id="file-input" name="image" accept="image/*" required /><br /><br />
+        <button type="submit" id="upload-btn">Upload & Detect</button>
+        <div id="upload-progress" class="progress-indicator hidden">
+          <p>🔍 Analyzing emotion... This may take a moment on first use.</p>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Or capture from your webcam</h2>
+      <div id="camera">
+        <video id="video" autoplay muted webkit-playsinline playsinline></video><br />
+        <button id="snap">Capture & Detect</button><br /><br />
+        <label for="cam-name">Your name (optional):</label>
+        <input type="text" id="cam-name" placeholder="Your name (optional)" />
+        <div id="cam-result" class="result-area hidden"></div>
+      </div>
+    </section>
+
+    {% if emotion %}
+    <section class="card result">
+      <h2>Result</h2>
+      <p><strong>{{ name }}</strong> — Detected emotion: <em>{{ emotion }}</em></p>
+      <img src="{{ image }}" alt="Uploaded image" width="220" />
+      {% if emotion.startswith('Error:') %}
+      <div class="error-help">
+        <p><strong>💡 Tips for better results:</strong></p>
+        <ul>
+          <li>Ensure good lighting on your face</li>
+          <li>Look directly at the camera</li>
+          <li>Make sure your face is clearly visible</li>
+          <li>Avoid shadows or extreme angles</li>
+        </ul>
+      </div>
+      {% elif 'uncertain' in emotion %}
+      <div class="uncertainty-help">
+        <p><strong>🤔 Uncertain result detected.</strong></p>
+        <p>Try retaking the photo with better lighting or a clearer expression.</p>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h3>🤖 Custom Model Training</h3>
+      <div class="model-training">
+        <p><strong>Want better accuracy? Train your own model!</strong></p>
+        <div class="training-section">
+          <div class="training-step">
+            <h4>🎯 FER2013 Training (Recommended)</h4>
+            <p>Train on 35,887 professional emotion images</p>
+            <ol>
+              <li><strong>Download FER2013:</strong> Visit <a href="https://www.kaggle.com/datasets/msambare/fer2013"
+                  target="_blank" rel="noopener">Kaggle FER2013</a></li>
+              <li><strong>Extract to folder:</strong> Create "fer2013" folder and extract dataset</li>
+              <li><strong>Install dependencies:</strong> <code>pip install scikit-learn pandas opencv-python</code></li>
+              <li><strong>Start training:</strong> <code>python model.py train</code></li>
+            </ol>
+            <p class="training-note">⏱️ Training takes 10-30 minutes depending on your computer</p>
+          </div>
+        </div>
+        <div id="training-status" class="training-status hidden"></div>
+
+        <div class="model-modes">
+          <h4>🔧 Model Modes (Environment Variables)</h4>
+          <ul>
+            <li><code>MODEL_MODE=deepface</code> - Use only DeepFace (default)</li>
+            <li><code>MODEL_MODE=custom</code> - Use only your FER2013 model</li>
+            <li><code>MODEL_MODE=hybrid</code> - Try FER2013 first, fallback to DeepFace</li>
+          </ul>
+          <p><small>Set these in your terminal before running the app</small></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>📈 Accuracy Tips</h3>
+      <div class="tips-grid">
+        <div class="tip-section">
+          <h4>📸 Photo Quality</h4>
+          <ul>
+            <li>Good lighting (avoid shadows)</li>
+            <li>Face clearly visible</li>
+            <li>Look at the camera</li>
+            <li>High resolution preferred</li>
+          </ul>
+        </div>
+        <div class="tip-section">
+          <h4>� FER2013 Benefits</h4>
+          <ul>
+            <li>35k+ professional images</li>
+            <li>Standard benchmark dataset</li>
+            <li>60-70% typical accuracy</li>
+            <li>Works great with grayscale</li>
+            <li>Optimized for webcam use</li>
+          </ul>
+        </div>
+      </div>
+      <p><small>💡 <strong>Pro tip:</strong> AI emotion detection has limitations and may not always be 100% accurate.
+          Cultural and individual differences in expression can affect results.</small></p>
+    </section>
+
+    <section class="card">
+      <h3>Recent users (API)</h3>
+      <p>You can GET <code>/users</code> to fetch recent records as JSON.</p>
+      <p>Visit <code>/accuracy-tips</code> for detailed accuracy guidelines.</p>
+    </section>
+  </div>
+
+  <script>
+    // HTML escape function for security
+    function escapeHtml(unsafe) {
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Webcam capture + send to /capture
+    async function setupCamera() {
+      const video = document.getElementById('video');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        video.srcObject = stream;
+      } catch (err) {
+        console.error('Could not access webcam:', err);
+      }
+    }
+
+    function dataURLToBlob(dataURL) {
+      const parts = dataURL.split(',');
+      const mime = parts[0].match(/:(.*?);/)[1];
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupCamera();
+
+      // Handle upload form submission
+      const uploadForm = document.getElementById('upload-form');
+      const uploadBtn = document.getElementById('upload-btn');
+      const uploadProgress = document.getElementById('upload-progress');
+
+      uploadForm.addEventListener('submit', () => {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Analyzing...';
+        uploadProgress.classList.remove('hidden');
+      });
+
+      // Handle training interface
+      const initTrainingBtn = document.getElementById('init-training');
+      const trainModelBtn = document.getElementById('train-model');
+      const trainingStatus = document.getElementById('training-status');
+
+      if (initTrainingBtn) {
+        initTrainingBtn.addEventListener('click', async () => {
+          try {
+            initTrainingBtn.disabled = true;
+            initTrainingBtn.textContent = 'Creating...';
+
+            const response = await fetch('/start-training');
+            const result = await response.json();
+
+            if (result.success) {
+              trainingStatus.innerHTML = `
+                <div class="success">
+                  ✅ ${result.message}
+                  <ul>
+                    ${result.instructions.map(instruction => `<li>${instruction}</li>`).join('')}
+                  </ul>
+                </div>
+              `;
+              trainingStatus.classList.remove('hidden');
+              trainModelBtn.disabled = false;
+            } else {
+              trainingStatus.innerHTML = `<div class="error">❌ Error: ${result.error}</div>`;
+              trainingStatus.classList.remove('hidden');
+            }
+          } catch (error) {
+            trainingStatus.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            trainingStatus.classList.remove('hidden');
+          } finally {
+            initTrainingBtn.disabled = false;
+            initTrainingBtn.textContent = 'Create Training Folders';
+          }
+        });
+      }
+
+      if (trainModelBtn) {
+        trainModelBtn.addEventListener('click', async () => {
+          try {
+            trainModelBtn.disabled = true;
+            trainModelBtn.textContent = 'Training...';
+
+            trainingStatus.innerHTML = '<div class="progress">🔄 Training model... This may take several minutes. Check the console for progress.</div>';
+            trainingStatus.classList.remove('hidden');
+
+            const response = await fetch('/train-model', { method: 'POST' });
+            const result = await response.json();
+
+            if (result.success) {
+              trainingStatus.innerHTML = `
+                <div class="success">
+                  ✅ ${result.message}
+                  <p>${result.note}</p>
+                  <p>Once training completes, restart the app with <code>MODEL_MODE=custom</code> to use your model.</p>
+                </div>
+              `;
+            } else {
+              trainingStatus.innerHTML = `<div class="error">❌ Error: ${result.error}</div>`;
+            }
+          } catch (error) {
+            trainingStatus.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+          } finally {
+            trainModelBtn.disabled = false;
+            trainModelBtn.textContent = 'Train Custom Model';
+          }
+        });
+      }
+
+      // Handle webcam capture
+      const video = document.getElementById('video');
+      const snapBtn = document.getElementById('snap');
+      const resultArea = document.getElementById('cam-result');
+      const nameInput = document.getElementById('cam-name'); snapBtn.addEventListener('click', async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL('image/png');
+        resultArea.classList.remove('hidden');
+        resultArea.innerHTML = 'Detecting...';
+
+        try {
+          const resp = await fetch('/capture', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: nameInput.value || 'Unknown', image: dataURL })
+          });
+
+          if (!resp.ok) {
+            throw new Error(`HTTP error! status: ${resp.status}`);
+          }
+
+          const j = await resp.json();
+          if (j.error) {
+            resultArea.innerHTML = '<strong>Error:</strong> ' + escapeHtml(j.error);
+          } else {
+            resultArea.innerHTML = '<strong>' + escapeHtml(j.name) + '</strong> — Emotion: <em>' + escapeHtml(j.emotion) + '</em><br/><img src="' + j.image + '" width="220" alt="Captured image" />';
+          }
+        } catch (err) {
+          console.error('Capture error:', err);
+          resultArea.innerHTML = '<strong>Error:</strong> ' + escapeHtml(err.message || 'Unknown error occurred');
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
