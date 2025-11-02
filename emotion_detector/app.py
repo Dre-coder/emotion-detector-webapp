@@ -4,6 +4,7 @@ from datetime import datetime
 
 # Don't import DeepFace immediately - import it when needed
 emotion_detector = None
+DeepFace = None
 
 # Model selection - can be 'deepface', 'custom', or 'hybrid'
 MODEL_MODE = os.getenv('MODEL_MODE', 'deepface').lower()
