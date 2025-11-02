@@ -1,0 +1,2 @@
+web: cd emotion_detector && python app.py
+worker: echo "No worker process needed"

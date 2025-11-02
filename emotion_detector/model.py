@@ -13,18 +13,8 @@ from sklearn.metrics import accuracy_score, classification_report
 import pickle
 import time
 
-# Lazy import for DeepFace
-DeepFace = None
-
-def lazy_import_deepface():
-    global DeepFace
-    if DeepFace is None:
-        try:
-            from deepface import DeepFace as DF
-            DeepFace = DF
-        except ImportError:
-            DeepFace = "unavailable"
-    return DeepFace != "unavailable"
+# Import DeepFace directly
+from deepface import DeepFace
 
 class EmotionDetector:
     def __init__(self, model_mode='deepface'):
@@ -239,32 +229,19 @@ class EmotionDetector:
     
     def _predict_deepface(self, image_path, start_time):
         """Predict using DeepFace"""
-        if not lazy_import_deepface():
-            return {"error": "DeepFace not available"}
-        
         try:
-            # Use opencv detector for fastest processing
-            result = DeepFace.analyze(
-                image_path, 
-                actions=['emotion'], 
-                detector_backend='opencv',  # Fastest detector
-                enforce_detection=False
-            )
-            if isinstance(result, list):
-                result = result[0]
+            # Use the direct DeepFace import pattern
+            result = DeepFace.analyze(img_path=image_path, actions=['emotion'])
+            emotion = result[0]['dominant_emotion']
             
-            emotions = result.get('emotion', {})
-            if not emotions:
-                return {"error": "No emotions detected"}
-            
-            dominant_emotion = max(emotions.items(), key=lambda x: x[1])
+            elapsed_time = time.time() - start_time
+            confidence = result[0]['emotion'][emotion] / 100.0
             
             return {
-                'emotion': dominant_emotion[0],
-                'confidence': dominant_emotion[1] / 100.0,
-                'all_scores': {k: v/100.0 for k, v in emotions.items()},
+                'emotion': emotion,
+                'confidence': confidence,
                 'source': 'DeepFace',
-                'processing_time': time.time() - start_time
+                'processing_time': elapsed_time
             }
         except Exception as e:
             return {"error": f"DeepFace failed: {e}"}

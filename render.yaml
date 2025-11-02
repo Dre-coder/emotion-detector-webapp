@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: cd emotion_detector && gunicorn --bind 0.0.0.0:$PORT app:app --workers 1 --timeout 120
+    startCommand: python emotion_detector/app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.6
@@ -12,3 +12,5 @@ services:
         value: deepface
       - key: FLASK_ENV
         value: production
+      - key: PORT
+        value: 10000

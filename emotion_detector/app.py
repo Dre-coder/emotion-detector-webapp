@@ -2,9 +2,11 @@ from flask import Flask, render_template, request, jsonify
 import sqlite3, os, uuid, base64
 from datetime import datetime
 
-# Don't import DeepFace immediately - import it when needed
+# Import DeepFace directly
+from deepface import DeepFace
+
+# Don't import custom emotion detector immediately - import it when needed
 emotion_detector = None
-DeepFace = None
 
 # Model selection - can be 'deepface', 'custom', or 'hybrid'
 MODEL_MODE = os.getenv('MODEL_MODE', 'deepface').lower()
@@ -16,6 +18,8 @@ app = Flask(__name__)
 if os.environ.get('FLASK_ENV') == 'production':
     app.config['DEBUG'] = False
     app.config['TESTING'] = False
+    # Set DeepFace home to writable directory in production
+    os.environ.setdefault('DEEPFACE_HOME', '/tmp/.deepface')
 
 # Ensure static directory exists
 static_dir = os.path.join(os.path.dirname(__file__), 'static')
@@ -46,10 +50,6 @@ def warm_up_deepface():
     """Pre-load DeepFace models to reduce first-use delay"""
     try:
         print("Warming up DeepFace models...")
-        global DeepFace
-        if DeepFace is None:
-            from deepface import DeepFace as DF
-            DeepFace = DF
         
         # Create a small test image to warm up the models
         import numpy as np
@@ -60,8 +60,8 @@ def warm_up_deepface():
         test_path = os.path.join(static_dir, 'warmup_test.jpg')
         Image.fromarray(test_img).save(test_path)
         
-        # Run a quick analysis to load models
-        DeepFace.analyze(
+        # Run a quick analysis to load models using the direct DeepFace import
+        result = DeepFace.analyze(
             img_path=test_path,
             actions=['emotion'],
             enforce_detection=False,
@@ -255,9 +255,8 @@ def users():
 @app.route('/performance')
 def performance_info():
     """Provide performance information and tips"""
-    global DeepFace
     return jsonify({
-        'deepface_loaded': DeepFace is not None,
+        'deepface_loaded': True,  # DeepFace is now directly imported
         'development_mode': DEVELOPMENT_MODE,
         'tips': [
             "First emotion detection will be slower as models need to be downloaded and loaded",
