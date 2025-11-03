@@ -1,7 +1,7 @@
 Flask==2.3.3
 gunicorn==21.2.0
 deepface==0.0.87
-tensorflow>=2.11.0
+tensorflow-cpu>=2.11.0
 opencv-python-headless==4.8.1.78
 numpy==1.24.3
 pandas==2.0.3
